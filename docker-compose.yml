@@ -1,0 +1,41 @@
+services:
+  bot:
+    build: .
+    container_name: media_bot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # inside the compose network the local API server is reachable by service name
+      LOCAL_BOT_API_URL: http://telegram-bot-api:8081
+      DATABASE_URL: sqlite+aiosqlite:////app/data/bot.db
+      DOWNLOAD_DIR: /app/downloads
+    volumes:
+      - ./data:/app/data
+      - ./downloads:/app/downloads
+      # mount cookies.txt here and set COOKIES_FILE=/app/cookies/cookies.txt in .env
+      - ./cookies:/app/cookies:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # Optional self-hosted Bot API server (2 GB uploads).
+  # Start with:  docker compose --profile local-api up -d
+  # and set USE_LOCAL_BOT_API=true in .env (plus TELEGRAM_API_ID / TELEGRAM_API_HASH).
+  telegram-bot-api:
+    image: aiogram/telegram-bot-api:latest
+    container_name: telegram_bot_api
+    restart: unless-stopped
+    profiles: ["local-api"]
+    environment:
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH}
+      TELEGRAM_LOCAL: "1"
+    volumes:
+      - telegram-bot-api-data:/var/lib/telegram-bot-api
+    ports:
+      - "127.0.0.1:8081:8081"
+
+volumes:
+  telegram-bot-api-data:
